@@ -1,187 +1,115 @@
-# Playwright QA Automation — Mudapedia Digital Indonesia
+# Playwright QA Automation Portfolio — Mudapedia Digital Indonesia
 
-Automated UI + visual regression suite for the company website
+Automated **UI + visual regression** suite for
 **[https://mudapediadigitalindonesia.com/](https://mudapediadigitalindonesia.com/)**,
-written with Playwright and Applitools Eyes.
+structured as a maintainable QA automation portfolio.
 
 Author: **Novia Gita Karisma** — [github.com/GitaKarisma100](https://github.com/GitaKarisma100)
 
 ---
 
-## 1. Prerequisites
+## Architecture
 
-- **Node.js** 18+ (project tested on Node 22)
-- **npm**
-- Playwright browsers: installed via `npx playwright install`
-- An **Applitools** account + API key (only needed for visual tests)
-- Git + GitHub account (for cloning/pushing)
+| Layer | Location | Responsibility |
+|---|---|---|
+| **Page Object Model** | `pages/BasePage.ts`, `pages/MudapediaHomePage.ts`, `pages/GalleryPage.ts` | Locators + intention-revealing interactions; specs contain no raw selectors |
+| **Custom Fixtures** | `fixtures/index.ts` | Injects ready page objects, test data and utilities via `test.extend` |
+| **Test Data** | `test-data/mudapedia.data.ts` | URLs, expected text, prices, labels, viewports — single source of truth |
+| **Reusable Utilities** | `utils/helpers.ts` | `expectNoHorizontalOverflow`, `toggleThemeUntilChanged`, `setFormFixture`, `sectionHash` |
+| **Test Categorization** | `tests/smoke`, `tests/regression`, `tests/e2e`, `tests/visual`, `tests/dashboard` | Tagged `@smoke`, `@regression`, `@e2e`, `@visual` |
+| **Reporting** | `playwright.config.ts` + `reporters/markdown-reporter.ts` | list, HTML, JSON, JUnit and custom `reports/summary.md` |
+| **CI/CD** | `.github/workflows/playwright.yml` | GitHub Actions: smoke → regression → e2e → visual (with secret) |
 
-## 2. Installation
+Design rule: **tests describe behaviour, page objects describe the page, fixtures wire dependencies, data file holds values, utils hold shared logic.**
+
+---
+
+## Setup
 
 ```bash
 npm install
-npx playwright install
+npx playwright install chromium
+cp .env.example .env       # PowerShell: copy .env.example .env
 ```
 
-## 3. Environment / secrets
+Fill `.env` with `APPLITOOLS_API_KEY=*** Visual tests skip automatically when the key is missing. `.env` is gitignored.
 
-Copy the example file and fill in your Applitools API key:
+## Scripts
 
-```bash
-cp .env.example .env      # Windows PowerShell: copy .env.example .env
-```
-
-`.env` contents:
-
-```dotenv
-APPLITOOLS_API_KEY=your_real_key_here
-APPLITOOLS_BATCH_NAME=Mudapedia Visual Tests
-```
-
-`.env` is listed in `.gitignore` — **never commit it** and never paste the key in chat.
-Visual tests are **skipped automatically** when the key is missing, so the functional
-suite stays green.
-
-## 4. Playwright configuration
-
-`playwright.config.ts`:
-
-- `testDir: ./tests`
-- Projects: **chromium**, **firefox**, **webkit**
-- `fullyParallel: true`, `reporter: 'html'`, `trace: 'on-first-retry'`,
-  `screenshot: 'only-on-failure'`
-- Loads `.env` with `dotenv`
-- `use.eyesConfig`: `appName = "Mudapedia Digital Indonesia"`,
-  `batch.name = "Mudapedia Visual Tests"`
-
-> The site is React/Next.js — controls only work after hydration, so specs use
-> `waitUntil: 'networkidle'` instead of `domcontentloaded`.
-
-## 5. Scripts
-
-| Command | Description |
+| Command | Scope |
 |---|---|
-| `npm test` | Run all tests on chromium, 1 worker |
-| `npm run test:visual` | Run **only** the Mudapedia Applitools visual tests |
-| `npx playwright test tests/mudapedia.spec.ts --headed` | Run API-coverage spec with a visible browser |
-| `npx playwright show-report` | Open the HTML report |
+| `npm test` | All categorized tests (chromium, 1 worker) |
+| `npm run test:smoke` | `@smoke` only — fast PR gate |
+| `npm run test:regression` | `@regression` only |
+| `npm run test:e2e` | `@e2e` only |
+| `npm run test:visual` | `@visual` only (Applitools) |
+| `npm run test:all-browsers` | All configured browser projects |
+| `npm run report` | Open the HTML report |
 
-To run a single spec across all configured browsers, omit `--project`.
-
-## 6. Project structure
+## Project structure
 
 ```
 .
-├── pages/
-│   └── MudapediaPage.ts          # Page Object (BASE_URL + shared locators)
+├── pages/                    # POM
+├── fixtures/index.ts         # Custom fixtures
+├── test-data/mudapedia.data.ts
+├── utils/helpers.ts
+├── reporters/markdown-reporter.ts
 ├── tests/
-│   ├── mudapedia.spec.ts         # TC001–TC014 Playwright API coverage
-│   ├── practice/
-│   │   └── practice.spec.ts      # TC015–TC020 interactive UI scenarios
-│   ├── dashboard/
-│   │   └── dashboard.spec.ts     # TC021 dashboard route scaffold
-│   ├── visual/
-│   │   └── mudapedia.visual.spec.ts  # TC022–TC024 Applitools screenshots
-│   ├── example.spec.ts           # Playwright starter example (kept)
-│   └── gitakarisma.spec.ts       # Personal portfolio spec (kept)
-├── .env.example
-├── .gitignore
+│   ├── smoke/                # @smoke  (TC025-TC028)
+│   ├── regression/           # @regression (TC001-TC021)
+│   ├── e2e/                  # @e2e (TC029-TC030)
+│   ├── visual/               # @visual (TC022-TC024)
+│   ├── dashboard/            # @regression scaffold (TC021)
+│   └── examples/             # legacy starter specs (excluded via testIgnore)
+├── .github/workflows/playwright.yml
+├── playwright.config.ts
 ├── package.json
-└── playwright.config.ts
+└── README.md
 ```
 
-## 7. Test case catalogue (IDs TC001–TC024)
+## Test catalogue
 
-### `tests/mudapedia.spec.ts` — Playwright API coverage
-
-| ID | Scenario | API demonstrated |
+| Category | IDs | Coverage |
 |---|---|---|
-| TC001 | Open base URL, verify URL and title | `page.goto()`, `page.url()`, `page.title()` |
-| TC002 | Refresh and verify the page still loads | `page.reload()` |
-| TC003 | Home → `/galeri` → back → forward | `page.goBack()`, `page.goForward()` |
-| TC004 | Navigate to `#tim`, `#harga`, `#tentang` | `locator()`, `.click()` |
-| TC005 | Find heading, button and link by role | `getByRole()` |
-| TC006 | Find package names and hero copy | `getByText()` |
-| TC007 | Find theme button by `aria-label` | `getByLabel()` |
-| TC008 | Fill and type into an input | `getByPlaceholder()`, `.fill()`, `.type()` |
-| TC009 | Locate an element by test ID | `getByTestId()` |
-| TC010 | CSS and XPath locators | `locator()` |
-| TC011 | Switch blockchain tab and verify price | `.click()` |
-| TC012 | Press Enter on a keyboard field | `.press()` |
-| TC013 | Tick and untick a checkbox | `.check()`, `.uncheck()` |
-| TC014 | Choose a dropdown option | `.selectOption()` |
+| Smoke | TC025-TC028 | title/meta, hero, navigation, contact |
+| Regression (API) | TC001-TC014 | goto/url/title/reload/goBack/goForward, `getByRole/Text/Label/Placeholder/TestId`, `locator` CSS+XPath, `fill/type/press/check/uncheck/selectOption`, chain tab click |
+| Regression (UI) | TC015-TC020 | pricing cards, chain price switch, team filter, FAQ, theme, mobile overflow |
+| Dashboard | TC021 | `/dashboard` returns 404 (no auth area yet) |
+| Visual | TC022-TC024 | full homepage, `#tim` region, `/galeri` page baselines |
+| E2E | TC029-TC030 | multi-section journey; gallery → back → forward |
 
-> TC008–TC014 use a tiny local HTML fixture via `page.setContent()` because
-> the Mudapedia landing page has **no form controls**. No behaviour is invented
-> for the real site.
+Form-related APIs (TC008-TC014) run on a tiny local `page.setContent()` fixture because the live site has no inputs — no behaviour is invented.
 
-### `tests/practice/practice.spec.ts` — interactive UI
+## Reporting
 
-| ID | Scenario |
-|---|---|
-| TC015 | All three pricing packages and 3 "Beli Paket" buttons render |
-| TC016 | Clicking SUI changes the displayed token price |
-| TC017 | "Magang" filter hides staff; "Semua" restores them |
-| TC018 | FAQ accordion expands (`aria-expanded`) |
-| TC019 | Theme toggle changes the `<html>` class |
-| TC020 | Mobile viewport (390×844) has no horizontal overflow |
+Every `npm test` run produces:
 
-### `tests/dashboard/dashboard.spec.ts`
+- `playwright-report/index.html` — interactive HTML report
+- `reports/results.json`, `reports/junit.xml` — machine-readable results
+- `reports/summary.md` — custom markdown summary with pass rate and per-test table
 
-| ID | Scenario |
-|---|---|
-| TC021 | `GET /dashboard` returns 404 (no dashboard exists yet) |
+All are gitignored; CI uploads them as artifacts.
 
-### `tests/visual/mudapedia.visual.spec.ts` — Applitools
+## CI/CD
 
-| ID | Snapshot |
-|---|---|
-| TC022 | Full-page homepage |
-| TC023 | `#tim` (Tim Kami) region |
-| TC024 | `/galeri` page |
+`.github/workflows/playwright.yml` runs on push, PR, manual dispatch and a weekly schedule:
 
-First run creates **baseline** images; later runs compare against them and report
-visual diffs in the Applitools dashboard.
+1. **functional** job — `npm ci`, install chromium, run smoke → regression → e2e, upload evidence.
+2. **visual** job — only when `APPLITOOLS_API_KEY` secret exists; runs `@visual` and uploads evidence.
 
-## 8. Live DOM facts (verified 2026-11-20/21)
+Set the secret in **Settings → Secrets and variables → Actions → New repository secret** as `APPLITOOLS_API_KEY`.
 
-- Real section IDs are `#tim`, `#harga`, `#tentang`, `#galeri`
-  (`#TimKami` / `#tentangkami` are labels, not IDs).
-- `/galeri` is a real page with `h1 = "Galeri Instagram"`.
-- Chain tabs: SOLANA (default, base price Rp 35.500.000) → SUI (Rp 26.000.000).
-- FAQ: 5 buttons with `aria-expanded`.
-- Theme: `button[aria-label="Toggle theme"]` toggles `<html class="dark|light">`.
-- Public site has **no login/register/dashboard** — those routes return 404.
+## Known findings
 
-## 9. Known site defect
+- Site bug: `document.getElementById('year')` is null at line ~1261 → `TypeError` on every page load. Fix: add `<span id="year"></span>` to footer or use optional chaining.
+- Visual diff: TC022 homepage currently reports a diff against its first baseline — review/accept the change in the Applitools batch before expecting green.
+- Public site has no login/register/dashboard (all 404); TC021 documents that state.
 
-Every page load throws:
+## Verification
 
-```
-TypeError: Cannot set properties of null (setting 'textContent')
-at ...:1261 → document.getElementById('year').textContent = new Date().getFullYear()
-```
+Last full local run (chromium): **29 passed, 1 failed** — the only failure is the intentional visual-diff finding above; all 29 functional tests passed.
 
-There is no `id="year"` element in the DOM. Fix in the site source: add
-`<span id="year"></span>` to the footer or use optional chaining:
+## License
 
-```js
-document.getElementById('year')?.textContent = new Date().getFullYear();
-```
-
-## 10. Verification history
-
-- Functional suite (chromium, 1 worker): **21 passed**
-- Visual suite with valid key: **3 passed** — results batch
-  `https://eyes.applitools.com/app/test-results/00000251607051703845?accountId=HbsGDfEaN0Odv5yXcpOjgg__`
-- Visual suite without key: **3 skipped** (by design)
-
-## 11. Security notes
-
-- `.env` is gitignored; `.env.example` is the only committed template.
-- The Applitools key must be rotated if it was ever shared outside a private channel.
-- Never commit credentials, tokens, or API keys.
-
-## 12. License
-
-ISC (inherited from the project scaffold).
+ISC (inherited from project scaffold).

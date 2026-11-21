@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { BASE_URL } from '../../pages/MudapediaPage';
+import { TEST_DATA } from '../../test-data/mudapedia.data';
 
 /**
  * DASHBOARD SCENARIO
@@ -14,9 +14,9 @@ import { BASE_URL } from '../../pages/MudapediaPage';
  *   When   a visitor requests the /dashboard route
  *   Then   the response status is 404 (dashboard not implemented yet)
  */
-test.describe('Dashboard', () => {
+test.describe('Dashboard', { tag: '@regression' }, () => {
   test('TC021 dashboard route is not available on the current site', async ({ request }) => {
-    const response = await request.get(new URL('/dashboard', BASE_URL).toString());
+    const response = await request.get(new URL('/dashboard', TEST_DATA.baseUrl).toString());
     expect(response.status()).toBe(404);
   });
 });
